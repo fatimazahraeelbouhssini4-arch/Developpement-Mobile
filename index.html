@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correction TP - API REST - FST Tanger</title>
+    
+    <style>
+        :root {
+            --primary: #1a2a6c;
+            --accent: #b21f1f;
+            --bg: #f0f2f5;
+            --white: #ffffff;
+            --success: #27ae60;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0; padding: 20px;
+            line-height: 1.6;
+        }
+
+        header { text-align: center; color: var(--primary); margin-bottom: 40px; }
+
+        /* Style des cartes pour chaque exercice */
+        .card {
+            background: var(--white);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 750px;
+            margin: 0 auto 30px;
+        }
+
+        h2 { border-left: 5px solid var(--accent); padding-left: 15px; font-size: 1.2em; color: var(--primary); }
+
+        .input-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+
+        input, select, button {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        input { flex-grow: 1; }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { background: var(--accent); }
+
+        /* Style de la liste de tâches */
+        ul { list-style: none; padding: 0; }
+        li {
+            background: #f9f9f9;
+            margin: 8px 0;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .done-btn { background: var(--success); font-size: 0.9em; padding: 8px 15px; }
+
+        /* Grille d'images pour les chiens */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .grid img { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #ddd; }
+
+        .status { color: var(--success); font-weight: bold; font-size: 0.9em; margin-top: 10px; text-align: center; }
+
+        /* Convertisseur */
+        .converter-form { display: flex; align-items: center; gap: 10px; justify-content: center; }
+        .result-box { text-align: center; margin-top: 20px; color: var(--primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Correction Complète du TP : API REST</h1>
+        <p>LST : IDAI | Module : Initiation en développement mobile et Edge Computing</p>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>1. Gestion des Tâches (Méthodes GET, POST, PUT)</h2>
+            <div class="input-group">
+                <input type="text" id="taskInput" placeholder="Ex: Réviser le cours API...">
+                <button onclick="addTask()">Ajouter la tâche</button>
+            </div>
+            <ul id="todoList"></ul>
+            <p id="todoStatus" class="status"></p>
+        </section>
+
+        <section class="card">
+            <h2>2. Recherche d'Images de Chiens (Filtrage & Galerie)</h2>
+            <div class="input-group">
+                <input type="text" id="breedSearch" placeholder="Filtrer une race..." oninput="filterBreeds()">
+                <select id="breedSelect" onchange="loadDogImages()">
+                    <option value="">-- Sélectionnez une race --</option>
+                </select>
+            </div>
+            <div id="dogGrid" class="grid"></div>
+        </section>
+
+        <section class="card">
+            <h2>3. Convertisseur de Devises (Taux de change en temps réel)</h2>
+            <div class="converter-form">
+                <input type="number" id="amount" value="1" min="1" style="width: 80px;">
+                <select id="fromCurrency"></select>
+                <span>➔</span>
+                <select id="toCurrency"></select>
+                <button onclick="convertCurrency()">Convertir</button>
+            </div>
+            <div class="result-box">
+                <h3 id="conversionResult">Résultat : ---</h3>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /**
+         * CONFIGURATION DES URLS DES APIS
+         */
+        const URL_TACHES = "https://jsonplaceholder.typicode.com/todos";
+        const URL_CHIENS = "https://dog.ceo/api/breeds";
+
+        // ============================================================
+        // EXERCICE 1 : LISTE DE TÂCHES (TO-DO LIST)
+        // ============================================================
+
+        const traductions = ["Réviser le cours API", "Préparer le TP mobile", "Acheter des composants Edge", "Finir le rapport LST", "Envoyer le code au professeur"];
+
+        /** Récupère les tâches depuis l'API (Méthode GET) */
+        async function chargerTaches() {
+            try {
+                const res = await fetch(`${URL_TACHES}?_limit=5`); 
+                const data = await res.json(); 
+                
+                data.forEach((tache, index) => {
+                    tache.title = traductions[index] || tache.title;
+                    afficherTache(tache);
+                });
+            } catch (err) { 
+                console.error("Erreur lors du chargement des tâches :", err); 
+            }
+        }
+
+        /** Affiche une tâche dans le DOM */
+        function afficherTache(tache) {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span style="${tache.completed ? 'text-decoration:line-through; color:gray' : ''}">${tache.title}</span>
+                <button class="done-btn" onclick="terminerTache(${tache.id}, this)">Terminé</button>
+            `; 
+            document.getElementById('todoList').appendChild(li);
+        }
+
+        /** Ajoute une nouvelle tâche (Méthode POST) */
+        async function addTask() {
+            const titre = document.getElementById('taskInput').value;
+            if (!titre) return;
+
+            const res = await fetch(URL_TACHES, {
+                method: 'POST', 
+                body: JSON.stringify({ title: titre, completed: false, userId: 1 }),
+                headers: { 'Content-type': 'application/json' }
+            });
+            
+            const nouvelleTache = await res.json();
+            afficherTache(nouvelleTache); 
+            document.getElementById('taskInput').value = ""; 
+            document.getElementById('todoStatus').innerText = "Confirmation : Tâche ajoutée avec succès !";
+        }
+
+        /** Marque une tâche comme terminée (Méthode PUT) */
+        async function terminerTache(id, bouton) {
+            try {
+                await fetch(`${URL_TACHES}/${id}`, {
+                    method: 'PUT', 
+                    body: JSON.stringify({ completed: true }),
+                    headers: { 'Content-type': 'application/json' }
+                });
+                
+                const texte = bouton.previousElementSibling;
+                texte.style.textDecoration = "line-through";
+                texte.style.color = "gray";
+                document.getElementById('todoStatus').innerText = "Succès : La tâche a été mise à jour (PUT) !"; 
+            } catch (e) { 
+                console.error("Erreur lors de la mise à jour :", e); 
+            }
+        }
+
+        // ============================================================
+        // EXERCICE 2 : RECHERCHE DE CHIENS
+        // ============================================================
+
+        let listeRaces = []; 
+
+        /** Charge la liste de toutes les races (Méthode GET) */
+        async function chargerRaces() {
+            const res = await fetch(`${URL_CHIENS}/list/all`); 
+            const data = await res.json();
+            listeRaces = Object.keys(data.message); 
+            remplirSelect(listeRaces); 
+        }
+
+        /** Remplit le menu <select> */
+        function remplirSelect(races) {
+            const select = document.getElementById('breedSelect');
+            select.innerHTML = '<option value="">-- Sélectionnez une race --</option>';
+            races.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.innerText = r.charAt(0).toUpperCase() + r.slice(1);
+                select.appendChild(opt); 
+            });
+        }
+
+        /** Filtre les races selon la saisie */
+        function filterBreeds() {
+            const mot = document.getElementById('breedSearch').value.toLowerCase();
+            const filtre = listeRaces.filter(r => r.includes(mot));
+            remplirSelect(filtre); 
+        }
+
+        /** Affiche les images (Méthode GET) */
+        async function loadDogImages() {
+            const race = document.getElementById('breedSelect').value;
+            if(!race) return;
+            
+            const res = await fetch(`${URL_CHIENS}/breed/${race}/images`); 
+            const data = await res.json();
+            const grille = document.getElementById('dogGrid');
+            
+            grille.innerHTML = data.message.slice(0, 6).map(img => `<img src="${img}">`).join(''); 
+        }
+
+        // ============================================================
+        // EXERCICE 3 : CONVERTISSEUR DE DEVISES
+        // ============================================================
+
+        /** Initialise les devises */
+        async function initConvertisseur() {
+            const res = await fetch("https://open.er-api.com/v6/latest/MAD");
+            const data = await res.json();
+            const devises = Object.keys(data.rates);
+            const selects = [document.getElementById('fromCurrency'), document.getElementById('toCurrency')];
+            
+            selects.forEach(s => {
+                devises.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d; opt.innerText = d;
+                    s.appendChild(opt);
+                });
+            });
+            document.getElementById('fromCurrency').value = "MAD";
+            document.getElementById('toCurrency').value = "EUR";
+        }
+
+        /** Calcule la conversion (Méthode GET) */
+        async function convertCurrency() {
+            const de = document.getElementById('fromCurrency').value;
+            const a = document.getElementById('toCurrency').value;
+            const montant = document.getElementById('amount').value;
+
+            const res = await fetch(`https://open.er-api.com/v6/latest/${de}`);
+            const data = await res.json();
+            const taux = data.rates[a];
+            const total = (montant * taux).toFixed(2);
+            document.getElementById('conversionResult').innerText = `Résultat : ${montant} ${de} = ${total} ${a}`; 
+        }
+
+        /** Lancement au chargement de la page */
+        window.onload = () => {
+            chargerTaches();
+            chargerRaces();
+            initConvertisseur();
+        };
+    </script>
+</body>
+</html>
